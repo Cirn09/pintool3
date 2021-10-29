@@ -71,7 +71,7 @@ optional arguments:
 **languages binding - Byte2021**
 
 ```
-❯ py -3 .\pintool3.py -a64 -s 0xcc240 -e 0x103dab -d .\byte2021q_languages_binding\new_lang.exe .\byte2021q_languages_binding\new_lang_script.out
+❯ $env:GODEBUG="asyncpreemptoff=1"; py -3 .\pintool3.py -a64 -s 0xcc240 -e 0x103dab -d .\byte2021q_languages_binding\new_lang_original.exe .\byte2021q_languages_binding\new_lang_script.out
   \\\\                                    | 19148
   \\\\\                                   | 19152
   \\\\\\                                  | 19146
@@ -113,7 +113,7 @@ The expected input length may be 29
 ```
 
 ```
-❯ py -3 .\pintool3.py -a64 -s 0xcc240 -e 0x103dab -l29 -b .\byte2021q_languages_binding\new_lang.exe .\byte2021q_languages_binding\new_lang_script.out
+❯ $env:GODEBUG="asyncpreemptoff=1"; py -3 .\pintool3.py -a64 -s 0xcc240 -e 0x103dab -l29 -b .\byte2021q_languages_binding\new_lang_original.exe .\byte2021q_languages_binding\new_lang_script.out
   0\\\\\\\\\\\\\\\\\\\\\\\\\\\\ | 10480
   1\\\\\\\\\\\\\\\\\\\\\\\\\\\\ | 10480
 ...

@@ -88,6 +88,7 @@ def pin(cmd: list,
                 _cmd,
                 #    shell=True,
                 check=True,
+                env=os.environ,
                 input=input_encode,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE)
@@ -243,7 +244,7 @@ def len_detect(cmd: list,
         solve = solve_multi
     else:
         solve = solve_single
-    inputs = [char * len for len in range(min_length, max_length)]
+    inputs = [char * len for len in range(min_length, max_length + 1)]
     target = solve(cmd, inputs, arch, type, range_start, range_end,
                    count_on_branch_taken, module, retry, encoding)
     target_len = min_length + target
