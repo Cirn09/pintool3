@@ -31,7 +31,6 @@ bcount64 = PATH_TO_BCOUNT64
 
 
 ```sh
-$python pintool3.py 
 usage: pintool3 [options] -- cmd
 example: pintool3 -a 64 -- ls -l
 
@@ -47,8 +46,8 @@ optional arguments:
                         Start *offset* of the record range.
   -e RANGE_END, --range-end RANGE_END
                         End *offset* of the record range. 0 mean module end.
-  -b, --count-on-branch-taken
-                        Count all branch or just taken branch. (default: false)
+  -b COUNT_ON, --count-type COUNT_ON
+                        Count on (default: 0): 0. all branch 1. taken branch 2. not taken branch.
   --disable-multiprocess
                         Disable multiprocess
   -r RETRY, --retry RETRY
@@ -58,10 +57,12 @@ optional arguments:
   -c CHARSET, --charset CHARSET
                         Charset definition for brute force. -c "abc..." (default: string.printable-string.whitespace)
   -p PADDING, --padding PADDING
-                        padding (default: '\').
+                        padding (default: '_').
+  -k KNOWN, --known KNOWN
+                        input format of flag. Example: "flag{__025______}" padding "_" refers to unknown, you can use -p to specify padding. After setting this option, Length (-l) will be ignored.
   -l LENGTH, --length LENGTH
                         Input length or max input length (when detect on).
-  -t TYPE, --type TYPE  max or min
+  -t TYPE, --type TYPE  max, min or unique
   -o ORDER, --order ORDER
                         Bruteforce order, "normal", "reverse" or "detect"
 ```
@@ -113,7 +114,7 @@ The expected input length may be 29
 ```
 
 ```
-❯ $env:GODEBUG="asyncpreemptoff=1"; py -3 .\pintool3.py -a64 -s 0xcc240 -e 0x103dab -l29 -b .\byte2021q_languages_binding\new_lang_original.exe .\byte2021q_languages_binding\new_lang_script.out
+❯ $env:GODEBUG="asyncpreemptoff=1"; py -3 .\pintool3.py -a64 -s 0xcc240 -e 0x103dab -l29 -b2 .\byte2021q_languages_binding\new_lang_original.exe .\byte2021q_languages_binding\new_lang_script.out
   0\\\\\\\\\\\\\\\\\\\\\\\\\\\\ | 10480
   1\\\\\\\\\\\\\\\\\\\\\\\\\\\\ | 10480
 ...
@@ -128,7 +129,7 @@ The expected input length may be 29
 > ByteC\\\\\\\\\\\\\\\\\\\\\\\\ | 11080
 ```
 
-note: Because GoLang's influence on the signal and thread management code is enough to cover the count of the check function, this problem requires careful selection of the range before you can use pintool3 to solve the part of the flag checked by GoLang (obviously, the range I selected is not fine enough).
+note: ~~Because GoLang's influence on the signal and thread management code is enough to cover the count of the check function, this problem requires careful selection of the range before you can use pintool3 to solve the part of the flag checked by GoLang (obviously, the range I selected is not fine enough).~~ Only flag[-2] cannot solve by pintool3
 
 ### TODO
 

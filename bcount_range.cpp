@@ -56,8 +56,8 @@ KNOB<ADDRINT> KnobCountRangeStart(KNOB_MODE_WRITEONCE, "pintool", "s", "0",
                                   "Start *offset* of the record range. (default: 0)");
 KNOB<ADDRINT> KnobCountRangeEnd(KNOB_MODE_WRITEONCE, "pintool", "e", "0",
                                 "End *offset* of the record range. (default: end)");
-KNOB<bool> KnobCountWhenBranch(KNOB_MODE_WRITEONCE, "pintool", "b", "0",
-                               "Count all branch or just taken branch. (default: false)");
+KNOB<int> KnobCountType(KNOB_MODE_WRITEONCE, "pintool", "b", "0",
+                        "Count on: 0. all branch \n\t1. taken branch \n\t2. not taken branch");
 KNOB<bool> KnobDebugLog(KNOB_MODE_WRITEONCE, "pintool", "d", "0",
                         "Debug log. (default: false)");
 
@@ -84,15 +84,44 @@ ADDRINT range_end = 0;
 
 /* ===================================================================== */
 
-VOID docount() { bcount++; }
+VOID count_plus() { bcount++; }
+VOID count_sub() { bcount--; }
 
 /* ===================================================================== */
+bool INS_IsConditionalBranch(INS ins)
+{
+    OPCODE opcode = INS_Opcode(ins);
+    if (opcode == XED_ICLASS_JB ||
+        opcode == XED_ICLASS_JBE ||
+        opcode == XED_ICLASS_JCXZ ||
+        opcode == XED_ICLASS_JECXZ ||
+        opcode == XED_ICLASS_JL ||
+        opcode == XED_ICLASS_JLE ||
+        // opcode == XED_ICLASS_JMP ||
+        // opcode == XED_ICLASS_JMP_FAR ||
+        opcode == XED_ICLASS_JNB ||
+        opcode == XED_ICLASS_JNBE ||
+        opcode == XED_ICLASS_JNL ||
+        opcode == XED_ICLASS_JNLE ||
+        opcode == XED_ICLASS_JNO ||
+        opcode == XED_ICLASS_JNP ||
+        opcode == XED_ICLASS_JNS ||
+        opcode == XED_ICLASS_JNZ ||
+        opcode == XED_ICLASS_JO ||
+        opcode == XED_ICLASS_JP ||
+        opcode == XED_ICLASS_JRCXZ ||
+        opcode == XED_ICLASS_JS ||
+        opcode == XED_ICLASS_JZ)
+        return true;
+    return false;
+}
 
 VOID Instruction(INS ins, VOID *v)
 {
-    static bool CountWhenBranch = KnobCountWhenBranch.Value();
+    static int CountType = KnobCountType.Value();
     if (!range_end)
         return;
+    // if (!INS_IsConditionalBranch(ins))
     if (!INS_IsDirectBranch(ins))
         return;
 
@@ -100,10 +129,22 @@ VOID Instruction(INS ins, VOID *v)
     if (range_start <= addr && addr <= range_end)
     {
         // if (range_start + 0xCC240 <= addr && addr <= range_start + 0x103DAB)
-        if (CountWhenBranch)
-            INS_InsertCall(ins, IPOINT_TAKEN_BRANCH, (AFUNPTR)docount, IARG_END);
-        else
-            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)docount, IARG_END);
+        if (CountType == 0)
+        {
+            // count on all branch
+            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)count_plus, IARG_END);
+        }
+        else if (CountType == 1)
+        {
+            // count on taken branch
+            INS_InsertCall(ins, IPOINT_TAKEN_BRANCH, (AFUNPTR)count_plus, IARG_END);
+        }
+        else if (CountType == 2)
+        {
+            // count on not taken branch
+            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)count_plus, IARG_END);
+            INS_InsertCall(ins, IPOINT_TAKEN_BRANCH, (AFUNPTR)count_sub, IARG_END);
+        }
     }
 }
 

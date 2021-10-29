@@ -37,7 +37,7 @@ def pin(cmd: list,
         arch: int,
         range_start: int = 0,
         range_end: int = 0,
-        count_on_branch_taken: bool = False,
+        count_on: int = 0,
         module: str = '',
         retry: int = 0,
         encoding: str = 'utf8') -> int:
@@ -55,8 +55,7 @@ def pin(cmd: list,
             _cmd += f' -s {range_start}'
         if range_end:
             _cmd += f' -e {range_end}'
-        if count_on_branch_taken:
-            _cmd += ' -b'
+        _cmd += f' -b {count_on}'
         if module:
             _cmd += f' -p "{module}"'
         _cmd += f' -- {cmd}'
@@ -74,8 +73,7 @@ def pin(cmd: list,
             _cmd += ['-s', str(range_start)]
         if range_end:
             _cmd += ['-e', str(range_end)]
-        if count_on_branch_taken:
-            _cmd += ['-b']
+        _cmd += ['-b', str(count_on)]
         if module:
             _cmd += ['-p', module]
         _cmd += ['--'] + cmd
@@ -117,18 +115,18 @@ def multipin(cmd: list,
              arch: int,
              range_start: int = 0,
              range_end: int = 0,
-             count_on_branch_taken: bool = False,
+             count_on: int = 0,
              module: str = '',
              retry: int = 0,
-             encoding: str = 'utf8'):
+             encoding: str = 'utf8') -> list:
     '`cmd < [input0, input1 ...]` -> [count0, count1 ...]'
     pool = Pool(initializer=init_worker)
     try:
         r = []
         for input in inputs:
-            m = pool.apply_async(
-                pin, (cmd, input, arch, range_start, range_end,
-                      count_on_branch_taken, module, retry, encoding))
+            m = pool.apply_async(pin,
+                                 (cmd, input, arch, range_start, range_end,
+                                  count_on, module, retry, encoding))
             r.append(m)
         pool.close()
         return [x.get() for x in r]
@@ -141,41 +139,71 @@ def multipin(cmd: list,
         exit()
 
 
+def select(array: list, type: str) -> int:
+    if type == 'max':
+        max_index = max(range(len(array)), key=lambda x: array[x])
+        max_value = array[max_index]
+        if array.count(max_value) != 1:
+            return -1
+        else:
+            return max_index
+    elif type == 'min':
+        min_index = min(range(len(array)), key=lambda x: array[x])
+        min_value = array[min_index]
+        if array.count(min_value) != 1:
+            return -1
+        else:
+            return min_index
+    elif type == 'unique':
+        if len(array) <= 2:
+            return -1
+        s = set(array)
+        if len(s) != 2:
+            return -1
+        t = sorted(array)
+        start = t[0]
+        mid = t[len(array) // 2]
+        end = t[-1]
+        if start != mid:
+            return array.index(start)
+        elif end != mid:
+            return array.index(end)
+        else:
+            # never
+            return -1
+    else:
+        return -1
+
+
 def solve_single(cmd: list,
                  inputs: list,
                  arch: int,
                  type: str = 'max',
                  range_start: int = 0,
                  range_end: int = 0,
-                 count_on_branch_taken: bool = False,
+                 count_on: int = 0,
                  module: str = '',
                  retry: int = 0,
-                 encoding: str = 'utf8'):
-    if type == 'max':
-        func = max
-        target_count = -1
-    elif type == 'min':
-        func = min
-        target_count = math.inf
-    else:
-        func = None
-    target_index = None
-
+                 encoding: str = 'utf8') -> int:
+    '`cmd < [input0, input1 ...]` -> right index'
     max_input_len = max(map(len, inputs))
+    counts = []
 
-    for index, input in enumerate(inputs):
-        count = pin(cmd, input, arch, range_start, range_end,
-                    count_on_branch_taken, module, retry, encoding)
-        t = func(target_count, count)
-        if t != target_count:
-            target_index = index
-            target_count = t
-            s = '* '
-        else:
-            s = '  '
+    print('=' * 42)
+    for input in inputs:
+        count = pin(cmd, input, arch, range_start, range_end, count_on, module,
+                    retry, encoding)
+        counts.append(count)
+        s = '  '
         s += input.ljust(max_input_len, ' ')
         s += ' | ' + str(count)
         print(s)
+
+    target_index = select(counts, type)
+    if target_index == -1:
+        print('pin failed')
+        exit()
+    target_count = counts[target_index]
     s = '> ' + inputs[target_index].ljust(max_input_len,
                                           ' ') + ' | ' + str(target_count)
     print(s)
@@ -189,25 +217,21 @@ def solve_multi(cmd: list,
                 type: str = 'max',
                 range_start: int = 0,
                 range_end: int = 0,
-                count_on_branch_taken: bool = False,
+                count_on: int = 0,
                 module: str = '',
                 retry: int = 0,
-                encoding: str = 'utf8'):
-    counts = multipin(cmd, inputs, arch, range_start, range_end,
-                      count_on_branch_taken, module, retry, encoding)
-    if type == 'max':
-        func = max
-    elif type == 'min':
-        func = min
-    else:
-        func = None
+                encoding: str = 'utf8') -> int:
+    '`cmd < [input0, input1 ...]` -> right index'
+    counts = multipin(cmd, inputs, arch, range_start, range_end, count_on,
+                      module, retry, encoding)
 
-    target_index = func(range(len(counts)), key=lambda x: counts[x])
-    if len(set(counts)) == 1:
-        target_index = -1
+    target_index = select(counts, type)
 
     max_input_len = max(map(len, inputs))
-    max_count_len = max(map(lambda x: math.ceil(math.log10(x)), counts))
+    max_count_len = max(
+        map(lambda x: math.ceil(math.log10(x)) if x else 1, counts))
+
+    print('=' * 42)
     for i in range(len(counts)):
         count = counts[i]
         input = inputs[i]
@@ -220,6 +244,10 @@ def solve_multi(cmd: list,
         s += input.ljust(max_input_len, ' ')
         s += ' | ' + str(count).rjust(max_count_len, ' ')
         print(s)
+
+    if target_index == -1:
+        print('pin failed')
+        exit()
     s = '> ' + inputs[target_index].ljust(max_input_len, ' ') + ' | ' + str(
         counts[target_index])
     print(s)
@@ -236,17 +264,17 @@ def len_detect(cmd: list,
                type: str = 'max',
                range_start: int = 0,
                range_end: int = 0,
-               count_on_branch_taken: bool = False,
+               count_on: int = 0,
                module: str = '',
                retry: int = 0,
-               encoding: str = 'utf8'):
+               encoding: str = 'utf8') -> int:
     if multiprocess:
         solve = solve_multi
     else:
         solve = solve_single
     inputs = [char * len for len in range(min_length, max_length + 1)]
-    target = solve(cmd, inputs, arch, type, range_start, range_end,
-                   count_on_branch_taken, module, retry, encoding)
+    target = solve(cmd, inputs, arch, type, range_start, range_end, count_on,
+                   module, retry, encoding)
     target_len = min_length + target
     print(f'The expected input length may be {target_len}')
     return target_len
@@ -285,11 +313,13 @@ def parsearg():
         help='End *offset* of the record range. 0 mean module end.')
     parser.add_argument(
         '-b',
-        '--count-on-branch-taken',
-        dest='count_on_branch_taken',
-        action='store_true',
-        default=False,
-        help='Count all branch or just taken branch. (default: false)')
+        '--count-type',
+        dest='count_on',
+        type=int,
+        default=0,
+        help=
+        'Count on (default: 0): \n\t0. all branch \n\t1. taken branch \n\t2. not taken branch.'
+    )
     parser.add_argument('--disable-multiprocess',
                         dest='disable_multiprocess',
                         action='store_true',
@@ -326,8 +356,17 @@ def parsearg():
                         '--padding',
                         dest='padding',
                         type=str,
-                        default='\\',
-                        help="padding (default: '\\').")
+                        default='_',
+                        help="padding (default: '_').")
+    parser.add_argument(
+        '-k',
+        '--known',
+        dest='known',
+        type=str,
+        default='',
+        help=
+        'input format of flag. Example: "flag{__025______}"\npadding "_" refers to unknown, you can use -p to specify padding.\nAfter setting this option, Length (-l) will be ignored.'
+    )
     parser.add_argument(
         '-l',
         '--length',
@@ -340,7 +379,7 @@ def parsearg():
                         dest='type',
                         type=str,
                         default='max',
-                        help='max or min')
+                        help='max, min or unique')
     parser.add_argument(
         '-o',
         '--order',
@@ -364,122 +403,137 @@ def parsearg():
 if __name__ == "__main__":
 
     arg = parsearg()
+    known = {}
+    charset = arg.charset
+    padding = arg.padding
+    length = arg.length
     if arg.detect:
-        len_detect(cmd=arg.cmd,
-                   arch=arg.arch,
-                   multiprocess=not arg.disable_multiprocess,
-                   max_length=arg.length,
-                   char=arg.padding,
-                   type=arg.type,
-                   range_start=arg.range_start,
-                   range_end=arg.range_end,
-                   count_on_branch_taken=arg.count_on_branch_taken,
-                   module=arg.module,
-                   retry=arg.retry,
-                   encoding=arg.encoding)
+        length = len_detect(cmd=arg.cmd,
+                            arch=arg.arch,
+                            multiprocess=not arg.disable_multiprocess,
+                            max_length=arg.length,
+                            char=arg.padding,
+                            type=arg.type,
+                            range_start=arg.range_start,
+                            range_end=arg.range_end,
+                            count_on=arg.count_on,
+                            module=arg.module,
+                            retry=arg.retry,
+                            encoding=arg.encoding)
+
+    right_char = ''
+
+    if arg.known:
+        length = len(arg.known)
+        for i, c in enumerate(arg.known):
+            if c != padding:
+                known[i] = c
+    if arg.disable_multiprocess:
+        solve = solve_single
     else:
-        know = {}
-        charset = arg.charset
-        length = arg.length
-        padding = arg.padding
-        right_char = ''
-        if arg.disable_multiprocess:
-            solve = solve_single
-        else:
-            solve = solve_multi
+        solve = solve_multi
 
-        if 'detect'.startswith(arg.order):
+    if 'detect'.startswith(arg.order):
 
-            def gen_inputs():
-                inputs = []
+        def gen_inputs():
+            inputs = []
 
-                input_format = ['\x00'] * length
-                for key, value in know.items():
-                    input_format[key] = value
-                input_format = ''.join(input_format)
-                for char in charset:
-                    inputs.append(input_format.replace('\x00', char))
-                return inputs
+            input_format = ['\x00'] * length
+            for key, value in known.items():
+                input_format[key] = value
+            input_format = ''.join(input_format)
+            for char in charset:
+                inputs.append(input_format.replace('\x00', char))
+            return inputs
 
-            def get_index():
+        def get_index():
 
-                inputs = []
-                m = {}
-                input_format = ['\x00'] * length
-                for key, value in know.items():
-                    input_format[key] = value
-                input_format = ''.join(input_format)
-                for i in range(length):
-                    if i not in know:
-                        m[len(inputs)] = i
-                        input = input_format[0:i] + right_char + input_format[
-                            i + 1:]
-                        inputs.append(input.replace('\x00', padding))
-                index = solve(cmd=arg.cmd,
-                              inputs=inputs,
-                              arch=arg.arch,
-                              type=arg.type,
-                              range_start=arg.range_start,
-                              range_end=arg.range_end,
-                              count_on_branch_taken=arg.count_on_branch_taken,
-                              module=arg.module,
-                              retry=arg.retry,
-                              encoding=arg.encoding)
-                if index == -1:
-                    exit()
-                return m[index]
-                # know[m[index]] = right_char
-        elif 'normal'.startswith(arg.order):
-
-            def gen_inputs():
-                inputs = []
-                input_start = ''.join(know.values())
-                left_len = length - len(know) - 1
-                for char in charset:
-                    inputs.append(input_start + char + padding * left_len)
-                return inputs
-
-            def get_index():
-                return max(know.keys()) + 1 if know else 0
-        elif 'reverve'.startswith(arg.order):
-
-            def gen_inputs():
-                inputs = []
-                input_end = ''.join(know.values())
-                left_len = length - len(know) - 1
-                for char in charset:
-                    inputs.append(padding * left_len + char + input_end)
-                return inputs
-
-            def get_index():
-                return min(know.keys()) - 1 if know else length - 1
-
-        else:
-            exit()
-
-        while len(know) != length:
-            # inputs = []
-
-            # input_format = bytearray(length)
-            # for key, value in know:
-            #     input_format[key] = value
-            # input_format = str(input_format, arg.encoding)
-            # for char in charset:
-            #     inputs.append(input_format.replace('\x00', char))
-            inputs = gen_inputs()
-
+            inputs = []
+            m = {}
+            input_format = ['\x00'] * length
+            for key, value in known.items():
+                input_format[key] = value
+            input_format = ''.join(input_format)
+            for i in range(length):
+                if i not in known:
+                    m[len(inputs)] = i
+                    input = input_format[0:i] + right_char + input_format[i+1:]
+                    inputs.append(input.replace('\x00', padding))
             index = solve(cmd=arg.cmd,
                           inputs=inputs,
                           arch=arg.arch,
                           type=arg.type,
                           range_start=arg.range_start,
                           range_end=arg.range_end,
-                          count_on_branch_taken=arg.count_on_branch_taken,
+                          count_on=arg.count_on,
                           module=arg.module,
                           retry=arg.retry,
                           encoding=arg.encoding)
             if index == -1:
                 exit()
+            return m[index]
 
-            right_char = charset[index]
-            know[get_index()] = right_char
+    elif 'normal'.startswith(arg.order):
+
+        def gen_inputs():
+            inputs = []
+            current = 0
+            for i in range(length):
+                if i not in known:
+                    current = i
+                    break
+            input = [padding] * length
+            for i, v in known.items():
+                input[i] = v
+            for char in charset:
+                input[current] = char
+                inputs.append(''.join(input))
+            return inputs
+
+        def get_index():
+            for i in range(length):
+                if i not in known:
+                    return i
+    elif 'reverve'.startswith(arg.order):
+
+        def gen_inputs():
+            inputs = []
+            current = 0
+            for i in range(length - 1, -1, -1):
+                if i not in known:
+                    current = i
+                    break
+            input = [padding] * length
+            for i, v in known.items():
+                input[i] = v
+            for char in charset:
+                input[current] = char
+                inputs.append(''.join(input))
+            return inputs
+
+        def get_index():
+            for i in range(length - 1, -1, -1):
+                if i not in known:
+                    return i
+
+    else:
+        exit()
+
+    while len(known) != length:
+        inputs = gen_inputs()
+
+        index = solve(cmd=arg.cmd,
+                      inputs=inputs,
+                      arch=arg.arch,
+                      type=arg.type,
+                      range_start=arg.range_start,
+                      range_end=arg.range_end,
+                      count_on=arg.count_on,
+                      module=arg.module,
+                      retry=arg.retry,
+                      encoding=arg.encoding)
+        if index == -1:
+            exit()
+
+        right_char = charset[index]
+        known[get_index()] = right_char
