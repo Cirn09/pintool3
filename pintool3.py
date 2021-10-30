@@ -341,7 +341,7 @@ def parsearg():
                         dest='detect',
                         action='store_true',
                         default=False,
-                        help='Try detech expected input length.')
+                        help='Try detech expected input length, then exit.')
     parser.add_argument(
         '-c',
         '--charset',
@@ -403,10 +403,8 @@ def parsearg():
 if __name__ == "__main__":
 
     arg = parsearg()
-    known = {}
-    charset = arg.charset
-    padding = arg.padding
     length = arg.length
+
     if arg.detect:
         length = len_detect(cmd=arg.cmd,
                             arch=arg.arch,
@@ -420,7 +418,11 @@ if __name__ == "__main__":
                             module=arg.module,
                             retry=arg.retry,
                             encoding=arg.encoding)
+        exit()
 
+    known = {}
+    charset = arg.charset
+    padding = arg.padding
     right_char = ''
 
     if arg.known:

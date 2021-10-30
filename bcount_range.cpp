@@ -169,22 +169,16 @@ VOID Imageload(IMG img, VOID *v)
     else if (!IMG_IsMainExecutable(img))
         return;
 
-    ADDRINT img_start = IMG_StartAddress(img);
+    ADDRINT img_start = IMG_LowAddress(img);
     if (!img_start)
         return;
 
     ADDRINT start_offset = KnobCountRangeStart.Value();
-    // if (!start_offset)
-    //     range_start = img_start;
-    // else
-    //     range_start = img_start + start_offset;
     range_start = img_start + start_offset;
 
-    SEC sec_end = IMG_SecTail(img);
-    ADDRINT img_end = SEC_Address(sec_end) + SEC_Size(sec_end);
     ADDRINT end_offset = KnobCountRangeEnd.Value();
     if (!end_offset)
-        range_end = img_end;
+        range_end = IMG_HighAddress(img);
     else
         range_end = img_start + end_offset;
     static bool debug = KnobDebugLog.Value();
@@ -192,7 +186,7 @@ VOID Imageload(IMG img, VOID *v)
     {
         cerr << hex;
         cerr << "start: 0x" << range_start << endl;
-        cerr << "end: 0x" << range_end << endl;
+        cerr << "end  : 0x" << range_end << endl;
         cerr << dec;
     }
     return;
