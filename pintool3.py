@@ -82,7 +82,10 @@ def pin(cmd: list,
         if module:
             _cmd += ['-p', module]
         _cmd += ['--'] + cmd
-    input_encode = bytes(input + '\n', encoding)
+    if isinstance(input, str):
+        input_encode = bytes(input + '\n', encoding)
+    else:
+        input_encode = bytes(input) + b'\n'
 
     retry_time = 0
     while True:
