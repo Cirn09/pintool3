@@ -131,6 +131,10 @@ The expected input length may be 29
 
 note: ~~Because GoLang's influence on the signal and thread management code is enough to cover the count of the check function, this problem requires careful selection of the range before you can use pintool3 to solve the part of the flag checked by GoLang (obviously, the range I selected is not fine enough).~~ Only flag[-2] cannot solve by pintool3
 
+### Known bug
+
+- Ctrl-C may leave orphaned processes.
+
 ### TODO
 
 todo

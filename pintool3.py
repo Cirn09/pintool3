@@ -31,6 +31,11 @@ config.read(config_path)
 
 r = re.compile(r"Count ([\w]+)")
 
+class Pinfo(object):
+    def __init__(self, out, err, count) -> None:
+        self.out = out
+        self.err = err
+        self.count = count
 
 def pin(cmd: list,
         input: str,
@@ -40,8 +45,8 @@ def pin(cmd: list,
         count_on: int = 0,
         module: str = '',
         retry: int = 0,
-        encoding: str = 'utf8') -> int:
-    '''`cmd < input` -> branch count'''
+        encoding: str = 'utf8') -> Pinfo:
+    '''`cmd < input` -> Pinfo'''
     if isinstance(cmd, str):
         _cmd = f'"{config["path"]["pin"]}"'
         if arch == 32:
@@ -93,7 +98,8 @@ def pin(cmd: list,
             info = str(p.stderr, encoding)
             if t := re.search(r, info):
                 count = t.groups()[0]
-                return int(count)
+                count = int(count)
+                return Pinfo(p.stdout, p.stderr, count)
             else:
                 print(f'stderr: {info}')
                 print('regex ("Count ([\\w]+)) not found in stderr')
@@ -119,7 +125,7 @@ def multipin(cmd: list,
              module: str = '',
              retry: int = 0,
              encoding: str = 'utf8') -> list:
-    '`cmd < [input0, input1 ...]` -> [count0, count1 ...]'
+    '`cmd < [input0, input1 ...]` -> [Pinfo0, Pinfo1 ...]'
     pool = Pool(initializer=init_worker)
     try:
         r = []
@@ -191,8 +197,9 @@ def solve_single(cmd: list,
 
     print('=' * 42)
     for input in inputs:
-        count = pin(cmd, input, arch, range_start, range_end, count_on, module,
+        pinfo = pin(cmd, input, arch, range_start, range_end, count_on, module,
                     retry, encoding)
+        count = pinfo.count
         counts.append(count)
         s = '  '
         s += input.ljust(max_input_len, ' ')
@@ -222,8 +229,9 @@ def solve_multi(cmd: list,
                 retry: int = 0,
                 encoding: str = 'utf8') -> int:
     '`cmd < [input0, input1 ...]` -> right index'
-    counts = multipin(cmd, inputs, arch, range_start, range_end, count_on,
+    pinfos = multipin(cmd, inputs, arch, range_start, range_end, count_on,
                       module, retry, encoding)
+    counts = [x.count for x in pinfos]
 
     target_index = select(counts, type)
 
